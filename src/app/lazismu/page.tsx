@@ -3,11 +3,13 @@ import { requireUser } from "@/lib/auth";
 import { PageHeader, StatCard, Card, Badge, Empty } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { DonutChart, DonutLegend } from "@/components/charts";
-import { rupiah, rupiahShort, tanggal } from "@/lib/format";
+import { rupiah, rupiahShort, tanggal, bulanLabel, bulanKeyNow } from "@/lib/format";
 import GenerateBillingForm from "@/components/generate-billing-form";
+import { ensureBulananTagihan } from "@/lib/actions";
 
 export default async function LazismuDashboard() {
   await requireUser(["lazismu"]);
+  await ensureBulananTagihan();
 
   const [tagihan, pembayaran, aktifRek] = await Promise.all([
     prisma.tagihan.findMany({ orderBy: { tanggalJatuhTempo: "desc" }, include: { mappingBeasiswa: { include: { donatur: { include: { user: true } } } } } }),
@@ -39,7 +41,7 @@ export default async function LazismuDashboard() {
       <PageHeader title="Dashboard LAZISMU" sub="Penagihan, verifikasi pembayaran & rekening bank" />
 
       <div className="stat-grid">
-        <StatCard label="Lunas" value={String(lunas)} delta="Periode berjalan" />
+        <StatCard label="Lunas" value={String(lunas)} delta={bulanLabel(bulanKeyNow())} />
         <StatCard label="Belum Bayar" value={String(belum)} delta="Perlu ditagih" tone="accent" deltaTone="var(--accent)" />
         <StatCard label="Menunggu Verifikasi" value={String(menunggu)} delta="Cek bukti transfer" tone="info" deltaTone="var(--info)" />
         <StatCard label="Dana Masuk" value={rupiahShort(masuk)} delta={`${pctMasuk}% dari target`} />

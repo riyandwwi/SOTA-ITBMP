@@ -1,27 +1,25 @@
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/auth";
-import { rupiah, tanggal } from "@/lib/format";
-import { Icon } from "@/components/icons";
+import { rupiah, tanggal, bulanKeyNow, bulanLabel, LABEL_STATUS_TAGIHAN } from "@/lib/format";
+import { ensureBulananTagihan } from "@/lib/actions";
 import UploadBuktiToggle from "@/components/upload-bukti-toggle";
+import { Badge } from "@/components/ui";
 
 export default async function DonaturTagihanPage() {
   const user = await requireUser(["donatur"]);
+  await ensureBulananTagihan();
+  const nowKey = bulanKeyNow();
+
   const mappings = await prisma.mappingBeasiswa.findMany({
-    where: { donaturId: user.donatur!.id, status: "aktif", tagihan: { some: {} } },
-    include: { mahasiswa: true, tagihan: { orderBy: { tanggalJatuhTempo: "desc" } } },
+    where: { donaturId: user.donatur!.id, status: "aktif" },
+    include: { mahasiswa: true, tagihan: { orderBy: { periodeKey: "asc" } } },
   });
   const rek = await prisma.rekeningBank.findFirst({ where: { status: "aktif" }, orderBy: { createdAt: "desc" } });
 
-  const ST: Record<string, [string, string]> = {
-    pending: ["Belum Bayar", "badge-accent"],
-    menunggu_verifikasi: ["Menunggu Verifikasi", "badge-info"],
-    lunas: ["Lunas", "badge-primary"],
-    ditolak: ["Ditolak", "badge-danger"],
-  };
-
-  const all = mappings.flatMap((m) => m.tagihan);
-  const totalTagihan = all.reduce((s, t) => s + t.nominalHarusDibayar, 0);
-  const perluBayar = all.filter((t) => t.status === "pending" || t.status === "ditolak").length;
+  const semuaTagihan = mappings.flatMap((m) => m.tagihan);
+  const belumBayar = semuaTagihan.filter((t) => t.status === "pending" || t.status === "ditolak");
+  const menungguCount = semuaTagihan.filter((t) => t.status === "menunggu_verifikasi").length;
+  const totalBelumBayar = belumBayar.reduce((s, t) => s + t.nominalHarusDibayar, 0);
 
   return (
     <>
@@ -37,34 +35,56 @@ export default async function DonaturTagihanPage() {
       <div className="receipt-jagged"></div>
 
       <div className="receipt-card" style={{ marginTop: 6 }}>
-        <div className="label">Total Tagihan</div>
-        <div className="amount" style={{ fontSize: 24 }}>{rupiah(totalTagihan)}</div>
-        <div className="breakdown">Dari {mappings.length} mahasiswa asuh · {all.length} tagihan{perluBayar ? ` · ${perluBayar} perlu dibayar` : ""}</div>
+        <div className="label">Total Belum Dibayar</div>
+        <div className="amount" style={{ fontSize: 24 }}>{rupiah(totalBelumBayar)}</div>
+        <div className="breakdown">{belumBayar.length} tagihan belum dibayar{menungguCount ? ` · ${menungguCount} menunggu verifikasi` : ""}</div>
       </div>
       <div className="receipt-jagged"></div>
 
-      <div className="section-title">Tagihan Saya</div>
-      {all.length === 0 ? <div className="helper-note">Belum ada tagihan untuk periode ini.</div> : null}
+      <div className="section-title">Mahasiswa Asuh</div>
+      {mappings.length === 0 ? <div className="helper-note">Belum ada mahasiswa asuh.</div> : null}
 
-      {all.map((t) => {
-        const st = ST[t.status] ?? ["—", "badge-muted"];
-        const mhs = mappings.find((m) => m.id === t.mappingBeasiswaId)?.mahasiswa;
+      {mappings.map((m) => {
+        const adaBelum = belumBayar.some((t) => t.mappingBeasiswaId === m.id);
+        const menunggu = m.tagihan.some((t) => t.status === "menunggu_verifikasi");
         return (
-          <div className="card" key={t.id} style={{ padding: 0 }}>
+          <div className="card" key={m.id} style={{ padding: 0 }}>
             <div className="card-body">
               <div className="top-row" style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
-                <div><strong style={{ fontSize: 14 }}>{rupiah(t.nominalHarusDibayar)}</strong><span className="meta" style={{ display: "block" }}>{mhs?.nama ?? "—"} · {t.periode}</span></div>
-                <span className={`badge ${st[1]}`}>{st[0]}</span>
+                <div>
+                  <strong style={{ fontSize: 14 }}>{m.mahasiswa.nama}</strong>
+                  <span className="meta" style={{ display: "block" }}>{m.mahasiswa.prodi} · NIM {m.mahasiswa.nim} · {rupiah(m.nominalTanggungan)}/bulan</span>
+                </div>
               </div>
-              <div className="helper-note" style={{ margin: "10px 0" }}>
-                <b>Kode Referensi:</b> <span className="mono">{t.kodeReferensiUnik}</span><br />
-                Gunakan kode ini saat transfer agar LAZISMU dapat mencocokkan pembayaran Anda.
-              </div>
-              <div className="meta mono" style={{ marginBottom: 10 }}>Jatuh tempo {tanggal(t.tanggalJatuhTempo)}</div>
 
-              {t.status === "pending" || t.status === "ditolak" ? (
-                <UploadBuktiToggle tagihanId={t.id} tagihanNominal={t.nominalHarusDibayar} rekening={rek ? { namaBank: rek.namaBank, nomorRekening: rek.nomorRekening, atasNama: rek.atasNama } : null} />
-              ) : null}
+              <div className="table-wrap" style={{ margin: "10px 0" }}>
+                <table>
+                  <thead><tr><th>Bulan</th><th>Status</th><th>Nominal</th><th>Kode Referensi</th><th>Jatuh Tempo</th></tr></thead>
+                  <tbody>
+                    {m.tagihan.length === 0 ? <tr><td colSpan={5} style={{ color: "var(--muted)" }}>Belum ada tagihan.</td></tr> :
+                      m.tagihan.map((t) => {
+                        const st = LABEL_STATUS_TAGIHAN[t.status];
+                        return (
+                          <tr key={t.id}>
+                            <td>{bulanLabel(t.periodeKey)}{t.periodeKey === nowKey ? " (bulan ini)" : ""}</td>
+                            <td><Badge text={st.text} tone={st.tone} /></td>
+                            <td className="mono">{rupiah(t.nominalHarusDibayar)}</td>
+                            <td className="mono">{t.kodeReferensiUnik}</td>
+                            <td className="mono">{tanggal(t.tanggalJatuhTempo)}</td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {adaBelum ? (
+                <UploadBuktiToggle mappingId={m.id} nominal={m.nominalTanggungan} rekening={rek ? { namaBank: rek.namaBank, nomorRekening: rek.nomorRekening, atasNama: rek.atasNama } : null} />
+              ) : (
+                <div className="helper-note" style={{ margin: 0 }}>
+                  {menunggu ? "Ada bukti yang sedang menunggu verifikasi LAZISMU." : "Semua tagihan untuk mahasiswa ini sudah lunas."}
+                </div>
+              )}
             </div>
           </div>
         );

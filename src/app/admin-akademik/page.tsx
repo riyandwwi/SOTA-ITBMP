@@ -44,14 +44,14 @@ export default async function AdminAkademikDashboard() {
             actions={<a className="btn btn-ghost btn-sm" href="/admin-akademik/mahasiswa"><Icon name="plus" size={14} />Tambah Mahasiswa</a>}>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>Mahasiswa</th><th>Prodi / Smt</th><th>Kebutuhan</th><th></th></tr></thead>
+                <thead><tr><th>Mahasiswa</th><th>Prodi / Smt</th><th>Kebutuhan / Bln</th><th></th></tr></thead>
                 <tbody>
                   {butuh.length === 0 ? <tr><td colSpan={4}><Empty message="Semua mahasiswa sudah punya donatur 🎉" /></td></tr> :
                     butuh.slice(0, 5).map((m) => (
                       <tr key={m.id}>
                         <td><div className="cell-name"><Avatar nama={m.nama} tone="var(--accent)" /><div><b>{m.nama}</b><span className="sub mono">{m.nim}</span></div></div></td>
                         <td>{m.prodi} · {m.semester}</td>
-                        <td className="mono">{rupiah(m.nominalKebutuhanPerSemester)}</td>
+                        <td className="mono">{rupiah(m.nominalKebutuhanPerBulan)}</td>
                         <td><a className="btn btn-primary btn-sm" href="/admin-akademik/pencocokan">Cocokkan</a></td>
                       </tr>
                     ))}
@@ -69,7 +69,7 @@ export default async function AdminAkademikDashboard() {
 
         <div>
           <Card title="Cocokkan Mahasiswa → Donatur" hint="1 mahasiswa : 1 donatur, pendanaan penuh">
-            {butuh.length === 0 ? <Empty message="Tidak ada mahasiswa yang butuh donatur." /> : <MatchingForm candidates={butuh.map((m) => ({ id: m.id, nama: m.nama, nim: m.nim, prodi: m.prodi, semester: m.semester, kebutuhan: m.nominalKebutuhanPerSemester }))} donors={donorsMemenuhi} />}
+            {butuh.length === 0 ? <Empty message="Tidak ada mahasiswa yang butuh donatur." /> : <MatchingForm candidates={butuh.map((m) => ({ id: m.id, nama: m.nama, nim: m.nim, prodi: m.prodi, semester: m.semester, kebutuhan: m.nominalKebutuhanPerBulan }))} donors={donorsMemenuhi} />}
           </Card>
 
           <Card title="Status Mahasiswa">

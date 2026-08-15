@@ -73,7 +73,7 @@ export default async function MahasiswaPage({
                     <div className="group-label">Semester {g.smt}</div>
                     <div className="table-wrap">
                       <table>
-                        <thead><tr><th>Mahasiswa</th><th>Prodi</th><th>Kebutuhan</th><th>Status</th><th>Donatur</th><th></th></tr></thead>
+                        <thead><tr><th>Mahasiswa</th><th>Prodi</th><th>Kebutuhan / Bln</th><th>Status</th><th>Donatur</th><th></th></tr></thead>
                         <tbody>
                           {g.items.map((m) => {
                             const mapping = m.mappingBeasiswa[0];
@@ -82,7 +82,7 @@ export default async function MahasiswaPage({
                               <tr key={m.id}>
                                 <td><div className="cell-name"><Avatar nama={m.nama} tone={m.statusCover === "sudah_ada_donatur" ? undefined : "var(--accent)"} /><div><a href={`/admin-akademik/mahasiswa/${m.id}`} style={{ color: "var(--ink)", textDecoration: "none" }}><b>{m.nama}</b></a><span className="sub mono">{m.nim}</span></div></div></td>
                                 <td>{m.prodi}</td>
-                                <td className="mono">{rupiah(m.nominalKebutuhanPerSemester)}</td>
+                                <td className="mono">{rupiah(m.nominalKebutuhanPerBulan)}</td>
                                 <td><Badge text={txt} tone={tone} /></td>
                                 <td>{mapping ? mapping.donatur.user.nama : "—"}</td>
                                 <td><HapusMahasiswa id={m.id} nama={m.nama} variant="icon" /></td>

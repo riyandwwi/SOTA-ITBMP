@@ -43,11 +43,11 @@ export default async function MahasiswaDetailPage({ params }: { params: Promise<
               <Avatar nama={m.nama} size={40} />
               <div className="grow">
                 <div className="top-row">
-                  <strong style={{ fontSize: 14 }}>{rupiah(m.nominalKebutuhanPerSemester)} / semester</strong>
+                  <strong style={{ fontSize: 14 }}>{rupiah(m.nominalKebutuhanPerBulan)} / bulan</strong>
                   <Badge text={m.statusCover === "sudah_ada_donatur" ? "Sudah Ada Donatur" : "Belum Ada Donatur"} tone={m.statusCover === "sudah_ada_donatur" ? "primary" : "accent"} />
                 </div>
                 <div className="meta">
-                  {active ? `Didanai ${active.donatur.user.nama} · skema ${active.skemaBayar} · mulai ${tanggal(active.tanggalMulai)}` : "Belum ada donatur aktif."}
+                  {active ? `Didanai ${active.donatur.user.nama} · mulai ${tanggal(active.tanggalMulai)}` : "Belum ada donatur aktif."}
                 </div>
               </div>
             </div>

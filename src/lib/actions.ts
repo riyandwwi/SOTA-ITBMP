@@ -8,7 +8,7 @@ import { verifyPassword, hashPassword, encryptSecret, decryptSecret } from "@/li
 import { audit } from "@/lib/audit";
 import { saveFile, MAX_FILE_SIZE, isAllowedImage, imageExtension, isAllowedPdf } from "@/lib/storage";
 import { notificationService } from "@/lib/notifications";
-import { deriveTahunAkademik } from "@/lib/format";
+import { deriveTahunAkademik, bulanKeyNow, bulanLabel, bulanKeyTambah } from "@/lib/format";
 
 const HOME: Record<string, string> = {
   super_admin: "/super-admin",
@@ -165,12 +165,11 @@ export async function matchStudentAction(_: ActionResult, formData: FormData): P
   const mahasiswaId = String(formData.get("mahasiswaId") || "");
   const donaturId = String(formData.get("donaturId") || "");
   const nominal = Number(formData.get("nominal") || 0);
-  const skema = String(formData.get("skema") || "bulanan") as "bulanan" | "semester";
 
   if (!mahasiswaId || !donaturId) return { error: "Pilih mahasiswa dan donatur." };
 
   try {
-    const result = await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx) => {
       const mahasiswa = await tx.mahasiswa.findUniqueOrThrow({ where: { id: mahasiswaId } });
       if (mahasiswa.statusCover !== "belum_ada_donatur") {
         throw new Error("Mahasiswa ini sudah punya donatur aktif.");
@@ -183,8 +182,8 @@ export async function matchStudentAction(_: ActionResult, formData: FormData): P
       const mapping = await tx.mappingBeasiswa.create({
         data: {
           donaturId, mahasiswaId,
-          nominalTanggungan: nominal > 0 ? nominal : mahasiswa.nominalKebutuhanPerSemester,
-          skemaBayar: skema, status: "aktif", dibuatOlehId: admin.id,
+          nominalTanggungan: nominal > 0 ? nominal : mahasiswa.nominalKebutuhanPerBulan,
+          status: "aktif", dibuatOlehId: admin.id,
         },
       });
       await tx.mahasiswa.update({ where: { id: mahasiswaId }, data: { statusCover: "sudah_ada_donatur" } });
@@ -287,15 +286,26 @@ export async function accPembayaranAction(_: ActionResult, formData: FormData): 
   const laz = await getSessionUser();
   if (!laz || laz.role !== "lazismu") return { error: "Tidak berwenang." };
   const id = String(formData.get("id") || "");
+  const nominal = Number(formData.get("nominal") || 0);
   const pembayaran = await prisma.pembayaran.findUnique({ where: { id }, include: { tagihan: true } });
   if (!pembayaran) return { error: "Pembayaran tidak ditemukan." };
+  const nominalBaru = nominal > 0 ? nominal : pembayaran.nominalDitransfer;
   await prisma.$transaction(async (tx) => {
     await tx.pembayaran.update({
       where: { id },
-      data: { status: "acc", idAdminAcc: laz.id, tanggalAcc: new Date(), urlPdfStt: `/stt/stt-${pembayaran.id.slice(0, 8)}.pdf` },
+      data: {
+        status: "acc", idAdminAcc: laz.id, tanggalAcc: new Date(),
+        nominalDitransfer: nominalBaru,
+        urlPdfStt: `/stt/stt-${pembayaran.id.slice(0, 8)}.pdf`,
+      },
     });
-    await tx.tagihan.update({ where: { id: pembayaran.tagihanId }, data: { status: "lunas" } });
-    await tx.auditLog.create({ data: { userId: laz.id, jenisAksi: "acc", entitas: "pembayaran", entitasId: id } });
+    await tx.tagihan.update({ where: { id: pembayaran.tagihanId }, data: { status: "lunas", nominalHarusDibayar: nominalBaru } });
+    await tx.auditLog.create({
+      data: {
+        userId: laz.id, jenisAksi: "acc", entitas: "pembayaran", entitasId: id,
+        detailPerubahan: JSON.stringify({ nominalAsli: pembayaran.nominalDitransfer, nominalBaru }),
+      },
+    });
   });
   revalidatePath("/lazismu");
   return { ok: true };
@@ -342,25 +352,26 @@ export async function rejectRekeningAction(formData: FormData): Promise<void> {
   redirect("/super-admin");
 }
 
-export async function generateBillingAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function generateBillingAction(_: ActionResult, _formData: FormData): Promise<ActionResult> {
   const laz = await getSessionUser();
   if (!laz || laz.role !== "lazismu") return { error: "Tidak berwenang." };
-  const periode = String(formData.get("periode") || "").trim() || "Berjalan";
+  const periodeKey = bulanKeyNow();
+  const periode = bulanLabel(periodeKey);
   const aktif = await prisma.mappingBeasiswa.findMany({ where: { status: "aktif" }, include: { tagihan: true } });
   let dibuat = 0;
   for (const m of aktif) {
-    const sudah = m.tagihan.some((t) => t.periode === periode);
+    const sudah = m.tagihan.some((t) => t.periodeKey === periodeKey);
     if (sudah) continue;
     await prisma.$transaction(async (tx) => {
       const kode = `LZ-${Date.now().toString(36)}-${Math.floor(1000 + Math.random() * 9000)}`;
       await tx.tagihan.create({
         data: {
-          mappingBeasiswaId: m.id, periode,
+          mappingBeasiswaId: m.id, periode, periodeKey,
           nominalHarusDibayar: m.nominalTanggungan, kodeReferensiUnik: kode,
           tanggalJatuhTempo: new Date(Date.now() + 14 * 86400000), status: "pending",
         },
       });
-      await tx.auditLog.create({ data: { userId: laz.id, jenisAksi: "create", entitas: "tagihan", entitasId: m.id, detailPerubahan: JSON.stringify({ periode }) } });
+      await tx.auditLog.create({ data: { userId: laz.id, jenisAksi: "create", entitas: "tagihan", entitasId: m.id, detailPerubahan: JSON.stringify({ periode, periodeKey }) } });
     });
     dibuat++;
   }
@@ -381,7 +392,7 @@ export async function transaksiManualAction(_: ActionResult, formData: FormData)
   await prisma.$transaction(async (tx) => {
     const kode = `LZ-MAN-${Date.now().toString(36)}`;
     const tagihan = await tx.tagihan.create({
-      data: { mappingBeasiswaId: mapping.id, periode: keterangan, nominalHarusDibayar: nominal, kodeReferensiUnik: kode, tanggalJatuhTempo: new Date(), status: "lunas" },
+      data: { mappingBeasiswaId: mapping.id, periode: keterangan, periodeKey: bulanKeyNow(), nominalHarusDibayar: nominal, kodeReferensiUnik: kode, tanggalJatuhTempo: new Date(), status: "lunas" },
     });
     await tx.pembayaran.create({
       data: { tagihanId: tagihan.id, fileBuktiTransferUrl: "/bukti-transfer/manual", tanggalTransfer: new Date(), nominalDitransfer: nominal, status: "acc", idAdminAcc: laz.id, tanggalAcc: new Date() },
@@ -426,7 +437,7 @@ export async function createMahasiswaAction(_: ActionResult, formData: FormData)
   const dup = await prisma.mahasiswa.findUnique({ where: { nim } });
   if (dup) return { error: "NIM sudah terdaftar." };
   const m = await prisma.mahasiswa.create({
-    data: { nama, nim, prodi, semester, tahunAkademik, nominalKebutuhanPerSemester: kebutuhan, fotoUrl: null },
+    data: { nama, nim, prodi, semester, tahunAkademik, nominalKebutuhanPerBulan: kebutuhan, fotoUrl: null },
   });
   await audit({ userId: admin.id, jenisAksi: "create", entitas: "mahasiswa", entitasId: m.id, detailPerubahan: { nama, nim, prodi, tahunAkademik } });
   revalidatePath("/admin-akademik");
@@ -452,33 +463,107 @@ export async function uploadKhsAction(_: ActionResult, formData: FormData): Prom
 
 // ---------------- Upload Bukti (Donatur) ----------------
 
+/** Generate tagihan bulan berjalan (lazy) untuk semua mapping aktif yang belum punya. */
+export async function ensureBulananTagihan(): Promise<void> {
+  const nowKey = bulanKeyNow();
+  const label = bulanLabel(nowKey);
+  const aktif = await prisma.mappingBeasiswa.findMany({
+    where: { status: "aktif" },
+    include: { tagihan: { select: { periodeKey: true } } },
+  });
+  for (const m of aktif) {
+    if (m.tagihan.some((t) => t.periodeKey === nowKey)) continue;
+    const kode = `LZ-${Date.now().toString(36)}-${Math.floor(1000 + Math.random() * 9000)}`;
+    await prisma.tagihan.create({
+      data: {
+        mappingBeasiswaId: m.id, periode: label, periodeKey: nowKey,
+        nominalHarusDibayar: m.nominalTanggungan, kodeReferensiUnik: kode,
+        tanggalJatuhTempo: new Date(Date.now() + 14 * 86400000), status: "pending",
+      },
+    });
+  }
+}
+
 export async function uploadBuktiAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   const don = await getSessionUser();
   if (!don || don.role !== "donatur" || !don.donatur) return { error: "Tidak berwenang." };
-  const tagihanId = String(formData.get("tagihanId") || "");
+  const mappingId = String(formData.get("mappingId") || "");
   const nominal = Number(formData.get("nominal") || 0);
+  const cakupan = String(formData.get("cakupan") || "bulan_ini");
   const file = formData.get("file");
   if (!(file instanceof File) || file.size === 0) return { error: "Upload bukti transfer." };
   if (file.size > MAX_FILE_SIZE) return { error: "Ukuran file maksimal 5MB." };
   if (!isAllowedImage(file.type)) return { error: "Bukti transfer harus berupa gambar PNG atau JPG." };
 
-  const tagihan = await prisma.tagihan.findUnique({ where: { id: tagihanId }, include: { mappingBeasiswa: true } });
-  if (!tagihan || tagihan.mappingBeasiswa.donaturId !== don.donatur.id) return { error: "Tagihan tidak ditemukan." };
-  if (tagihan.status !== "pending" && tagihan.status !== "ditolak") return { error: "Tagihan sudah diproses." };
+  const mapping = await prisma.mappingBeasiswa.findUnique({ where: { id: mappingId } });
+  if (!mapping || mapping.donaturId !== don.donatur.id || mapping.status !== "aktif") return { error: "Data mahasiswa asuh tidak ditemukan." };
 
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = imageExtension(file.type);
-  const stored = await saveFile("buktiTransfer", `bukti-${tagihanId.slice(0, 8)}-${Date.now()}.${ext}`, buf);
+  const stored = await saveFile("buktiTransfer", `bukti-${mappingId.slice(0, 8)}-${Date.now()}.${ext}`, buf);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.pembayaran.create({
-      data: { tagihanId, fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominal > 0 ? nominal : tagihan.nominalHarusDibayar },
+  const res = await prisma.$transaction(async (tx) => {
+    const nowKey = bulanKeyNow();
+    const existing = await tx.tagihan.findMany({ where: { mappingBeasiswaId: mapping.id } });
+    const byKey = new Map(existing.map((t) => [t.periodeKey, t]));
+
+    const buatTagihan = async (k: string) =>
+      tx.tagihan.create({
+        data: {
+          mappingBeasiswaId: mapping.id, periode: bulanLabel(k), periodeKey: k,
+          nominalHarusDibayar: mapping.nominalTanggungan,
+          kodeReferensiUnik: `LZ-${Date.now().toString(36)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          tanggalJatuhTempo: new Date(Date.now() + 14 * 86400000), status: "pending",
+        },
+      });
+
+    if (!byKey.has(nowKey)) byKey.set(nowKey, await buatTagihan(nowKey));
+
+    const bisaDibayar = (t: { status: string }) => t.status === "pending" || t.status === "ditolak";
+    let targets: { id: string; periodeKey: string; nominalHarusDibayar: number }[] = [];
+    if (cakupan === "semua") {
+      const pending = Array.from(byKey.values()).filter(bisaDibayar);
+      if (pending.length === 0) {
+        const t = byKey.get(nowKey);
+        if (t && bisaDibayar(t)) targets = [t];
+      } else {
+        targets = pending;
+      }
+    } else if (cakupan === "semester") {
+      for (let i = 0; i < 6; i++) {
+        const k = bulanKeyTambah(nowKey, i);
+        const t = byKey.get(k);
+        if (t) {
+          if (bisaDibayar(t)) targets.push(t);
+        } else {
+          targets.push(await buatTagihan(k));
+        }
+      }
+    } else {
+      const t = byKey.get(nowKey);
+      if (t && bisaDibayar(t)) targets = [t];
+    }
+    if (targets.length === 0) return null;
+
+    const nominalPerTagihan = nominal > 0 ? Math.round(nominal / targets.length) : mapping.nominalTanggungan;
+    for (const t of targets) {
+      await tx.pembayaran.create({
+        data: { tagihanId: t.id, fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominalPerTagihan },
+      });
+      await tx.tagihan.update({ where: { id: t.id }, data: { status: "menunggu_verifikasi" } });
+    }
+    await tx.auditLog.create({
+      data: {
+        userId: don.id, jenisAksi: "upload", entitas: "pembayaran", entitasId: mapping.id,
+        detailPerubahan: JSON.stringify({ nominal, cakupan, jumlahTagihan: targets.length, bulan: targets.map((t) => t.periodeKey) }),
+      },
     });
-    await tx.tagihan.update({ where: { id: tagihanId }, data: { status: "menunggu_verifikasi" } });
-    await tx.auditLog.create({ data: { userId: don.id, jenisAksi: "upload", entitas: "pembayaran", entitasId: tagihanId, detailPerubahan: JSON.stringify({ nominal }) } });
+    return targets;
   });
-  await notificationService.sendWa("08123456", `Bukti transfer baru menunggu verifikasi #${tagihan.kodeReferensiUnik}`);
+  if (!res) return { error: "Tidak ada tagihan yang bisa dibayar (semua sudah lunas)." };
+  await notificationService.sendWa("08123456", `Bukti transfer baru menunggu verifikasi (${res.length} tagihan).`);
   revalidatePath("/donatur");
+  revalidatePath("/donatur/tagihan");
   return { ok: true };
 }
 

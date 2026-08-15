@@ -79,15 +79,15 @@ async function main() {
     });
   }
 
-  // ---- Mahasiswa ----
+  // ---- Mahasiswa (nominal kebutuhan per BULAN) ----
   const mhsData = [
-    { nama: "Dewi Puspita", nim: "20210114", prodi: "Akuntansi", semester: 5, nominalKebutuhanPerSemester: 4500000, statusCover: "sudah_ada_donatur" as const },
-    { nama: "Rifqi Fadillah", nim: "20210087", prodi: "Teknik Informatika", semester: 3, nominalKebutuhanPerSemester: 5000000, statusCover: "sudah_ada_donatur" as const },
-    { nama: "Yusuf Wijaya", nim: "20200032", prodi: "Hukum", semester: 7, nominalKebutuhanPerSemester: 3800000, statusCover: "sudah_ada_donatur" as const },
-    { nama: "Siti Maryam", nim: "20220049", prodi: "Kedokteran", semester: 1, nominalKebutuhanPerSemester: 6200000, statusCover: "belum_ada_donatur" as const },
-    { nama: "Ahmad Fauzi", nim: "20210162", prodi: "Manajemen", semester: 5, nominalKebutuhanPerSemester: 4000000, statusCover: "belum_ada_donatur" as const },
-    { nama: "Lina Salsabila", nim: "20220071", prodi: "Psikologi", semester: 1, nominalKebutuhanPerSemester: 4300000, statusCover: "belum_ada_donatur" as const },
-    { nama: "Rendi Pratama", nim: "20230015", prodi: "Ekonomi Syariah", semester: 1, nominalKebutuhanPerSemester: 3600000, statusCover: "belum_ada_donatur" as const },
+    { nama: "Dewi Puspita", nim: "20210114", prodi: "Akuntansi", semester: 5, nominalKebutuhanPerBulan: 750000, statusCover: "sudah_ada_donatur" as const },
+    { nama: "Rifqi Fadillah", nim: "20210087", prodi: "Teknik Informatika", semester: 3, nominalKebutuhanPerBulan: 850000, statusCover: "sudah_ada_donatur" as const },
+    { nama: "Yusuf Wijaya", nim: "20200032", prodi: "Hukum", semester: 7, nominalKebutuhanPerBulan: 650000, statusCover: "sudah_ada_donatur" as const },
+    { nama: "Siti Maryam", nim: "20220049", prodi: "Kedokteran", semester: 1, nominalKebutuhanPerBulan: 1050000, statusCover: "belum_ada_donatur" as const },
+    { nama: "Ahmad Fauzi", nim: "20210162", prodi: "Manajemen", semester: 5, nominalKebutuhanPerBulan: 700000, statusCover: "belum_ada_donatur" as const },
+    { nama: "Lina Salsabila", nim: "20220071", prodi: "Psikologi", semester: 1, nominalKebutuhanPerBulan: 720000, statusCover: "belum_ada_donatur" as const },
+    { nama: "Rendi Pratama", nim: "20230015", prodi: "Ekonomi Syariah", semester: 1, nominalKebutuhanPerBulan: 600000, statusCover: "belum_ada_donatur" as const },
   ];
   const mahasiswa: Record<string, any> = {};
   for (const m of mhsData) {
@@ -119,26 +119,26 @@ async function main() {
     console.log("IPK", row.mhs, ipkRec.nilaiIpk);
   }
 
-  // ---- Mapping 1:1 + tagihan + pembayaran ----
+  // ---- Mapping 1:1 + tagihan (lunas periode Juli 2026) + pembayaran ----
   const mappingSpecs = [
-    { don: "budi", mhs: "20210114", nominal: 4500000, skema: "bulanan" as const, status: "aktif" as const },
-    { don: "anugerah", mhs: "20210087", nominal: 5000000, skema: "bulanan" as const, status: "aktif" as const },
-    { don: "siti", mhs: "20200032", nominal: 3800000, skema: "bulanan" as const, status: "aktif" as const },
+    { don: "budi", mhs: "20210114", nominal: 750000, status: "aktif" as const },
+    { don: "anugerah", mhs: "20210087", nominal: 850000, status: "aktif" as const },
+    { don: "siti", mhs: "20200032", nominal: 650000, status: "aktif" as const },
   ];
   const genKode = () => "LZ-" + Date.now().toString(36) + "-" + Math.floor(1000 + Math.random() * 9000);
   for (const sp of mappingSpecs) {
     const mapping = await prisma.mappingBeasiswa.create({
       data: {
         donaturId: donaturs[sp.don].id, mahasiswaId: mahasiswa[sp.mhs].id,
-        nominalTanggungan: sp.nominal, skemaBayar: sp.skema, status: sp.status,
+        nominalTanggungan: sp.nominal, status: sp.status,
         dibuatOlehId: akad.id,
       },
     });
     const tagihan = await prisma.tagihan.create({
       data: {
-        mappingBeasiswaId: mapping.id, periode: "Ganjil 2025/2026",
+        mappingBeasiswaId: mapping.id, periode: "Juli 2026", periodeKey: "2026-07",
         nominalHarusDibayar: sp.nominal, kodeReferensiUnik: genKode(),
-        tanggalJatuhTempo: new Date(Date.now() + 14 * 86400000), status: "lunas",
+        tanggalJatuhTempo: new Date(Date.now() - 10 * 86400000), status: "lunas",
       },
     });
     await prisma.pembayaran.create({

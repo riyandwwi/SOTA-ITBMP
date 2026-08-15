@@ -38,7 +38,7 @@ export default function CreateMahasiswaForm() {
 
       <div className="grid-2" style={{ gridTemplateColumns: "1fr 1fr", gap: 10, alignItems: "start" }}>
         <div>
-          <label className="field-label">Kebutuhan Dana / Semester (Rp)</label>
+          <label className="field-label">Kebutuhan Dana / Bulan (Rp)</label>
           <input className="input mb14 mono" type="number" min={1} name="kebutuhan" required />
         </div>
         <div />

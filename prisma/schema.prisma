@@ -49,10 +49,10 @@ model Mahasiswa {
   nama                        String
   nim                         String            @unique
   prodi                       String
-  semester                    Int
-  fotoUrl                     String?
-  nominalKebutuhanPerSemester Int
-  statusCover                 StatusCover       @default(belum_ada_donatur)
+  semester                   Int
+  fotoUrl                    String?
+  nominalKebutuhanPerBulan   Int
+  statusCover                StatusCover       @default(belum_ada_donatur)
   statusAktif                 StatusAktif       @default(aktif)
   tahunAkademik              String?
   ipkHistory                  IpkHistory[]
@@ -119,11 +119,6 @@ model MataKuliahNilai {
   bobotNilai     Float
 }
 
-enum SkemaBayar {
-  bulanan
-  semester
-}
-
 enum StatusMapping {
   aktif
   diganti
@@ -137,7 +132,6 @@ model MappingBeasiswa {
   mahasiswaId       String
   mahasiswa         Mahasiswa    @relation(fields: [mahasiswaId], references: [id], onDelete: Cascade)
   nominalTanggungan Int
-  skemaBayar        SkemaBayar
   tanggalMulai      DateTime     @default(now())
   status            StatusMapping @default(aktif)
   dibuatOlehId      String
@@ -161,11 +155,15 @@ model Tagihan {
   mappingBeasiswaId   String
   mappingBeasiswa     MappingBeasiswa @relation(fields: [mappingBeasiswaId], references: [id], onDelete: Cascade)
   periode             String
+  periodeKey          String
   nominalHarusDibayar Int
   kodeReferensiUnik   String        @unique
   tanggalJatuhTempo   DateTime
   status              StatusTagihan @default(pending)
   pembayaran          Pembayaran[]
+
+  @@unique([mappingBeasiswaId, periodeKey])
+  @@index([mappingBeasiswaId, status])
 }
 
 enum StatusPembayaran {

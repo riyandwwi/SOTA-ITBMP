@@ -2,6 +2,27 @@ export function rupiah(n: number): string {
   return "Rp " + n.toLocaleString("id-ID");
 }
 
+export const BULAN_NAMA = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+
+/** Key bulan format "YYYY-MM" (mis. "2026-08"). */
+export function bulanKeyNow(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Label bulan Indonesia dari "YYYY-MM". */
+export function bulanLabel(key: string): string {
+  const [y, m] = key.split("-").map(Number);
+  return `${BULAN_NAMA[(m || 1) - 1]} ${y}`;
+}
+
+/** Key bulan maju n bulan dari key "YYYY-MM". */
+export function bulanKeyTambah(key: string, n: number): string {
+  const [y, m] = key.split("-").map(Number);
+  const d = new Date(y, (m || 1) - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
 export function rupiahShort(n: number): string {
   if (n >= 1_000_000_000) return `Rp ${(n / 1_000_000_000).toFixed(1).replace(/\.0$/, "")}M`;
   if (n >= 1_000_000) return `Rp ${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")}jt`;

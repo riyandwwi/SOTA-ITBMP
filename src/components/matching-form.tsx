@@ -11,7 +11,6 @@ export default function MatchingForm({ candidates, donors }: { candidates: Candi
   const [state, formAction, pending] = useActionState(matchStudentAction, {});
   const [mhsId, setMhsId] = useState(candidates[0]?.id ?? "");
   const [nominal, setNominal] = useState<string>("");
-  const [skema, setSkema] = useState<"bulanan" | "semester">("bulanan");
 
   const sel = candidates.find((c) => c.id === mhsId);
 
@@ -26,7 +25,7 @@ export default function MatchingForm({ candidates, donors }: { candidates: Candi
           <option key={c.id} value={c.id}>{c.nama} — {c.prodi}, Smt {c.semester}</option>
         ))}
       </select>
-      {sel ? <p className="helper-note" style={{ marginTop: -8, marginBottom: 14 }}>Kebutuhan <b>{rupiah(sel.kebutuhan)}</b>/semester · NIM <span className="mono">{sel.nim}</span></p> : null}
+      {sel ? <p className="helper-note" style={{ marginTop: -8, marginBottom: 14 }}>Kebutuhan <b>{rupiah(sel.kebutuhan)}</b>/bulan · NIM <span className="mono">{sel.nim}</span></p> : null}
 
       <label className="field-label">Pilih Donatur</label>
       <select className="input mb14" name="donaturId">
@@ -35,16 +34,9 @@ export default function MatchingForm({ candidates, donors }: { candidates: Candi
         ))}
       </select>
 
-      <label className="field-label">Nominal Tanggungan</label>
+      <label className="field-label">Nominal Tanggungan / Bulan</label>
       <input className="input mb14 mono" type="number" name="nominal" value={nominal}
         placeholder={sel ? String(sel.kebutuhan) : "0"} onChange={(e) => setNominal(e.target.value)} />
-
-      <label className="field-label">Skema Bayar</label>
-      <div className="pill-toggle">
-        <button type="button" className={skema === "bulanan" ? "active" : ""} onClick={() => setSkema("bulanan")}>Bulanan</button>
-        <button type="button" className={skema === "semester" ? "active" : ""} onClick={() => setSkema("semester")}>Semester</button>
-      </div>
-      <input type="hidden" name="skema" value={skema} />
 
       <button className="btn btn-primary" style={{ width: "100%", justifyContent: "center" }} disabled={pending || !mhsId || donors.length === 0}>
         {pending ? "Menyimpan…" : "Konfirmasi Pencocokan"}
