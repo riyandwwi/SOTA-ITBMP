@@ -56,7 +56,7 @@ export async function requireUser(roles?: string[]) {
 export const ROLE_LABEL: Record<string, string> = {
   super_admin: "Super Admin",
   admin_akademik: "Admin Akademik",
-  lazismu: "LAZISMU",
+  lazismu: "SOTA ITBMP",
   donatur: "Donatur",
   pimpinan: "Pimpinan",
 };

@@ -17,7 +17,7 @@ export default function CreateAccountForm({ showAllRoles = false }: { showAllRol
           <>
             <option value="donatur">Donatur</option>
             <option value="admin_akademik">Admin Akademik</option>
-            <option value="lazismu">LAZISMU</option>
+            <option value="lazismu">SOTA ITBMP</option>
             <option value="pimpinan">Pimpinan</option>
           </>
         ) : (

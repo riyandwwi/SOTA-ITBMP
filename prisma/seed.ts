@@ -153,11 +153,11 @@ async function main() {
 
   // ---- Rekening bank (1 aktif, 2 pending) ----
   await prisma.rekeningBank.create({
-    data: { nomorRekening: "1330098821", namaBank: "Mandiri", atasNama: "Yayasan LAZISMU", diajukanOlehId: laz.id, status: "aktif", diAccOlehId: admin.id, tanggalAcc: new Date() },
+    data: { nomorRekening: "1330098821", namaBank: "Mandiri", atasNama: "Yayasan SOTA ITBMP", diajukanOlehId: laz.id, status: "aktif", diAccOlehId: admin.id, tanggalAcc: new Date() },
   });
-  await prisma.rekeningBank.create({ data: { nomorRekening: "7001234509", namaBank: "BSI", atasNama: "Yayasan LAZISMU", diajukanOlehId: laz.id, status: "pending" } });
-  await prisma.rekeningBank.create({ data: { nomorRekening: "0123456789", namaBank: "BNI", atasNama: "Yayasan LAZISMU", diajukanOlehId: laz.id, status: "pending" } });
+  await prisma.rekeningBank.create({ data: { nomorRekening: "7001234509", namaBank: "BSI", atasNama: "Yayasan SOTA ITBMP", diajukanOlehId: laz.id, status: "pending" } });
 
+  await prisma.rekeningBank.create({ data: { nomorRekening: "0123456789", namaBank: "BNI", atasNama: "Yayasan SOTA ITBMP", diajukanOlehId: laz.id, status: "pending" } });
   // ---- Audit log contoh ----
   await prisma.auditLog.createMany({
     data: [
@@ -170,7 +170,7 @@ async function main() {
   console.log("Seed selesai. Login default:");
   console.log("  Super Admin : admin / 06280795");
   console.log("  Admin Akad. : nurul / akademik123");
-  console.log("  LAZISMU     : rina / lazismu123");
+  console.log("  SOTA ITBMP  : rina / lazismu123");
   console.log("  Pimpinan    : agus / pimpinan123");
   console.log("  Donatur     : budi / donatur123");
 

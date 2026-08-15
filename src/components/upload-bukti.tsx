@@ -14,13 +14,13 @@ export default function UploadBukti({ mappingId, nominal, rekening }: {
 
   return (
     <div className="upload-box">
-      {state?.ok ? <div className="alert alert-success">Bukti terkirim, menunggu verifikasi LAZISMU.</div> : null}
+      {state?.ok ? <div className="alert alert-success">Bukti terkirim, menunggu verifikasi SOTA ITBMP.</div> : null}
       {state?.error ? <div className="alert alert-error">{state.error}</div> : null}
 
       <div className="helper-note" style={{ marginTop: 0 }}>
         {rekening ? (
           <>Transfer ke <b>{rekening.namaBank} {rekening.nomorRekening}</b> a.n. <b>{rekening.atasNama}</b></>
-        ) : "Transfer ke rekening LAZISMU yang ditampilkan di atas."}
+        ) : "Transfer ke rekening SOTA ITBMP yang ditampilkan di atas."}
         <br />
         Tanggungan <b>{rupiah(nominal)}</b>/bulan · 1 semester (6 bulan) = <b>{rupiah(nominal * 6)}</b>
       </div>

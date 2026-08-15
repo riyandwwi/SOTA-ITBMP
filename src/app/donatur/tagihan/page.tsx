@@ -30,7 +30,7 @@ export default async function DonaturTagihanPage() {
           <div className="breakdown">a.n. {rek.atasNama} · wajib isi <b>kode referensi</b> di bawah</div>
         </div>
       ) : (
-        <div className="helper-note" style={{ marginTop: 8 }}>Belum ada rekening tujuan aktif. Hubungi LAZISMU.</div>
+        <div className="helper-note" style={{ marginTop: 8 }}>Belum ada rekening tujuan aktif. Hubungi SOTA ITBMP.</div>
       )}
       <div className="receipt-jagged"></div>
 
@@ -82,7 +82,7 @@ export default async function DonaturTagihanPage() {
                 <UploadBuktiToggle mappingId={m.id} nominal={m.nominalTanggungan} rekening={rek ? { namaBank: rek.namaBank, nomorRekening: rek.nomorRekening, atasNama: rek.atasNama } : null} />
               ) : (
                 <div className="helper-note" style={{ margin: 0 }}>
-                  {menunggu ? "Ada bukti yang sedang menunggu verifikasi LAZISMU." : "Semua tagihan untuk mahasiswa ini sudah lunas."}
+                  {menunggu ? "Ada bukti yang sedang menunggu verifikasi SOTA ITBMP." : "Semua tagihan untuk mahasiswa ini sudah lunas."}
                 </div>
               )}
             </div>

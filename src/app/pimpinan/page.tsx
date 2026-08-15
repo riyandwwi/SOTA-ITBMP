@@ -32,7 +32,7 @@ export default async function PimpinanDashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard Pimpinan" sub="Pantauan ringkas donasi beasiswa LAZISMU" />
+      <PageHeader title="Dashboard Pimpinan" sub="Pantauan ringkas sistem orang tua asuh SOTA ITBMP" />
       <div className="stat-row">
         {[{ icon: "users", label: "Donatur", value: totalDonatur }, { icon: "cap", label: "Mahasiswa", value: totalMahasiswa }, { icon: "wallet", label: "Pembayaran ACC", value: totalPembayaran }, { icon: "bank", label: "Dana Masuk", value: rupiahShort(sumPay._sum?.nominalDitransfer ?? 0) }].map((s) => (
           <div className="stat-card" key={s.label}>

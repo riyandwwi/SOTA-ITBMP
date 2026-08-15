@@ -29,7 +29,7 @@ export default async function SuperAdminDashboard() {
 
   const roleDist = [
     { name: "Donatur", value: users.filter((u) => u.role === "donatur").length },
-    { name: "LAZISMU", value: users.filter((u) => u.role === "lazismu").length },
+    { name: "SOTA ITBMP", value: users.filter((u) => u.role === "lazismu").length },
     { name: "Akademik", value: users.filter((u) => u.role === "admin_akademik").length },
     { name: "Lainnya", value: users.filter((u) => !["donatur", "lazismu", "admin_akademik"].includes(u.role)).length },
   ];

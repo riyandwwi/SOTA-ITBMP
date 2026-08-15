@@ -38,7 +38,7 @@ export default async function LazismuDashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard LAZISMU" sub="Penagihan, verifikasi pembayaran & rekening bank" />
+      <PageHeader title="Dashboard SOTA ITBMP" sub="Penagihan, verifikasi pembayaran & rekening bank" />
 
       <div className="stat-grid">
         <StatCard label="Lunas" value={String(lunas)} delta={bulanLabel(bulanKeyNow())} />

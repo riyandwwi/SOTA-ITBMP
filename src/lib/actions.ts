@@ -284,7 +284,7 @@ export async function deleteMahasiswaAction(formData: FormData): Promise<void> {
   redirect("/admin-akademik/mahasiswa");
 }
 
-// ---------------- PEMBAYARAN (LAZISMU) ----------------
+// ---------------- PEMBAYARAN (SOTA ITBMP) ----------------
 
 export async function accPembayaranAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   const laz = await getSessionUser();
@@ -578,7 +578,7 @@ export async function ajukanRekeningAction(_: ActionResult, formData: FormData):
   const nomorRekening = String(formData.get("nomorRekening") || "").trim();
   if (!namaBank || !nomorRekening) return { error: "Lengkapi nama bank dan nomor rekening." };
   await prisma.rekeningBank.create({
-    data: { namaBank, nomorRekening, atasNama: "Yayasan LAZISMU", diajukanOlehId: laz.id, status: "pending" },
+    data: { namaBank, nomorRekening, atasNama: "Yayasan SOTA ITBMP", diajukanOlehId: laz.id, status: "pending" },
   });
   await audit({ userId: laz.id, jenisAksi: "create", entitas: "rekening_bank", detailPerubahan: { namaBank, nomorRekening } });
   revalidatePath("/lazismu");

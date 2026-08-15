@@ -14,8 +14,8 @@ const mono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sistem Donasi Beasiswa LAZISMU",
-  description: "Platform donasi beasiswa transparan & terukur",
+  title: "SOTA ITBMP — Sistem Orang Tua Asuh",
+  description: "Platform orang tua asuh beasiswa yang transparan & terukur",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

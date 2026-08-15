@@ -45,7 +45,7 @@ export default async function DonaturHome() {
           <div className="receipt-card" style={{ marginTop: 6 }}>
             <div className="label">Dibayar {bulanLabel(nowKey)}</div>
             <div className="amount" style={{ fontSize: 24 }}>{rupiah(sudahBulanIni)}</div>
-            <div className="breakdown">Tagihan bulan ini yang sudah diverifikasi LAZISMU</div>
+            <div className="breakdown">Tagihan bulan ini yang sudah diverifikasi SOTA ITBMP</div>
           </div>
           <div className="receipt-jagged"></div>
         </div>

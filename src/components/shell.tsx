@@ -14,10 +14,10 @@ export function AppShell({ user, children }: { user: User; children: React.React
     <>
       <div className="topbar">
         <a className="brand" href="/">
-          <div className="brand-mark">LZ</div>
+          <div className="brand-mark">SOTA</div>
           <div className="brand-text">
-            <strong>LAZISMU</strong>
-            <span>Sistem Donasi Beasiswa</span>
+            <strong>SOTA ITBMP</strong>
+            <span>Sistem Orang Tua Asuh</span>
           </div>
         </a>
         <div className="topbar-right">
