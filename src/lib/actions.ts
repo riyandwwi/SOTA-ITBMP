@@ -126,12 +126,16 @@ export async function createAccountAction(_: ActionResult, formData: FormData): 
   return { ok: true };
 }
 
-export async function deleteAccountAction(formData: FormData): Promise<void> {
+export async function deleteAccountAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
   const u = await getSessionUser();
   if (!u || u.role !== "super_admin") redirect("/super-admin/akun");
   const id = String(formData.get("id") || "");
+  const password = String(formData.get("password") || "");
   const target = await prisma.user.findUnique({ where: { id } });
   if (!target || id === u.id) redirect("/super-admin/akun");
+  if (!(await verifyPassword(password, u.passwordHash))) {
+    return { error: "Password salah. Akun tidak dihapus." };
+  }
   try {
     await prisma.$transaction(async (tx) => {
       await tx.donatur.deleteMany({ where: { userId: id } });
@@ -140,7 +144,7 @@ export async function deleteAccountAction(formData: FormData): Promise<void> {
     await audit({ userId: u.id, jenisAksi: "delete", entitas: "akun", entitasId: id, detailPerubahan: { username: target.username } });
     revalidatePath("/super-admin");
   } catch {
-    // terkait FK yang tersisa (mis. riwayat audit) — tetap kembali ke halaman tanpa crash
+    return { error: "Gagal menghapus akun (masih terhubung dengan data lain)." };
   }
   redirect("/super-admin/akun");
 }

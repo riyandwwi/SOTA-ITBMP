@@ -4,8 +4,8 @@ import { PageHeader, Card, Badge, Avatar, Empty } from "@/components/ui";
 import { Icon } from "@/components/icons";
 import { waktu } from "@/lib/format";
 import { RevealPassword } from "@/components/reveal-password";
-import { deleteAccountAction } from "@/lib/actions";
 import CreateAccountForm from "@/components/create-account-form";
+import HapusAkunDialog from "@/components/hapus-akun-dialog";
 
 function badgeRole(role: string) {
   const map: Record<string, string> = { super_admin: "danger", admin_akademik: "info", lazismu: "accent", donatur: "primary", pimpinan: "muted" };
@@ -35,7 +35,7 @@ export default async function AkunPage() {
                       <td>{u.role === "super_admin" ? <span className="mono">—</span> : <RevealPassword userId={u.id} />}</td>
                       <td>
                         {u.id !== me.id && u.role !== "super_admin" ? (
-                          <form action={deleteAccountAction}><input type="hidden" name="id" value={u.id} /><button className="btn-icon" title="Hapus"><Icon name="trash" size={13} /></button></form>
+                          <HapusAkunDialog id={u.id} nama={u.nama} username={u.username} />
                         ) : <span style={{ color: "var(--muted)" }}>—</span>}
                       </td>
                     </tr>

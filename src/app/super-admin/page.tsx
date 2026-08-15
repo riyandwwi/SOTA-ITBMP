@@ -4,7 +4,8 @@ import { PageHeader, StatCard, Card, Badge, Avatar, Empty } from "@/components/u
 import { Icon } from "@/components/icons";
 import { DonutChart, DonutLegend } from "@/components/charts";
 import { waktu } from "@/lib/format";
-import { approveRekeningAction, rejectRekeningAction, deleteAccountAction } from "@/lib/actions";
+import { approveRekeningAction, rejectRekeningAction } from "@/lib/actions";
+import HapusAkunDialog from "@/components/hapus-akun-dialog";
 
 async function getData() {
   const [users, mahasiswa, donaturs, rek, auditLogs] = await Promise.all([
@@ -60,7 +61,7 @@ export default async function SuperAdminDashboard() {
                       <td>
                         <div className="row-actions">
                           {u.role !== "super_admin" && u.id !== u.dibuatOlehId ? (
-                            <form action={deleteAccountAction}><input type="hidden" name="id" value={u.id} /><button className="btn-icon" title="Hapus"><Icon name="trash" size={13} /></button></form>
+                            <HapusAkunDialog id={u.id} nama={u.nama} username={u.username} />
                           ) : <span className="mono" style={{ marginLeft: 15 }}>—</span>}
                         </div>
                       </td>
