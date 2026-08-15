@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { Readable } from "node:stream";
 import path from "node:path";
 import { drive, auth, drive_v3 } from "@googleapis/drive";
 
@@ -22,8 +23,27 @@ const DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "1hNKJZQ_PWGci8U9-
 
 let driveClient: drive_v3.Drive | null = null;
 
-/** Baca kunci service account dari env GOOGLE_SERVICE_ACCOUNT (JSON mentah atau base64). */
-function loadCreds(): { client_email: string; private_key: string } | null {
+type DriveCreds =
+  | { mode: "oauth2"; clientId: string; clientSecret: string; refreshToken: string }
+  | { mode: "serviceAccount"; clientEmail: string; privateKey: string };
+
+const DRIVE_SCOPE = "https://www.googleapis.com/auth/drive.file";
+
+/**
+ * Baca kredensial Drive:
+ * 1. OAuth2 user (GOOGLE_REFRESH_TOKEN + CLIENT_ID/SECRET) — punya kuota penyimpanan.
+ * 2. Service account (GOOGLE_SERVICE_ACCOUNT, JSON mentah atau base64) — tanpa kuota,
+ *    hanya bisa dipakai lewat Shared Drive / Workspace.
+ */
+function loadCreds(): DriveCreds | null {
+  if (process.env.GOOGLE_REFRESH_TOKEN && process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+    return {
+      mode: "oauth2",
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      refreshToken: process.env.GOOGLE_REFRESH_TOKEN,
+    };
+  }
   const raw = process.env.GOOGLE_SERVICE_ACCOUNT || "";
   if (!raw.trim()) return null;
   try {
@@ -33,7 +53,7 @@ function loadCreds(): { client_email: string; private_key: string } | null {
     }
     const parsed = JSON.parse(json);
     if (!parsed.client_email || !parsed.private_key) return null;
-    return parsed;
+    return { mode: "serviceAccount", clientEmail: parsed.client_email, privateKey: parsed.private_key };
   } catch {
     return null;
   }
@@ -42,11 +62,17 @@ function loadCreds(): { client_email: string; private_key: string } | null {
 function getDrive(): drive_v3.Drive {
   if (driveClient) return driveClient;
   const creds = loadCreds()!;
-  const authClient = new auth.JWT({
-    email: creds.client_email,
-    key: creds.private_key,
-    scopes: ["https://www.googleapis.com/auth/drive.file"],
-  });
+  let authClient: InstanceType<typeof auth.OAuth2> | InstanceType<typeof auth.JWT>;
+  if (creds.mode === "oauth2") {
+    authClient = new auth.OAuth2(creds.clientId, creds.clientSecret);
+    authClient.setCredentials({ refresh_token: creds.refreshToken });
+  } else {
+    authClient = new auth.JWT({
+      email: creds.clientEmail,
+      key: creds.privateKey,
+      scopes: [DRIVE_SCOPE],
+    });
+  }
   driveClient = drive({ version: "v3", auth: authClient });
   return driveClient;
 }
@@ -76,7 +102,7 @@ export async function saveFile(
       const drive = getDrive();
       const res = await drive.files.create({
         requestBody: { name: safe, parents: [DRIVE_FOLDER_ID] },
-        media: { mimeType: mimeFromName(safe), body: buffer },
+        media: { mimeType: mimeFromName(safe), body: Readable.from(buffer) },
         fields: "id,name,webViewLink",
       });
       const fileId = res.data.id;

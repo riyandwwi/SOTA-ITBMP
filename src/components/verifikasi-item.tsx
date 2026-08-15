@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { accPembayaranAction, tolakPembayaranAction } from "@/lib/actions";
 import { rupiah, tanggal } from "@/lib/format";
 import { Icon } from "./icons";
+import LihatBuktiDialog from "./lihat-bukti-dialog";
 
 interface VerifikasiPembayaran {
   id: string;
@@ -34,11 +35,6 @@ export default function VerifikasiItem({ pembayaran }: { pembayaran: VerifikasiP
           <span className="mono" style={{ fontSize: 11 }}>#{pembayaran.tagihan.kodeReferensiUnik}</span>
         </div>
         <div className="meta">{rupiah(pembayaran.nominalDitransfer)} · transfer {tanggal(pembayaran.tanggalTransfer)} · untuk {pembayaran.tagihan.mappingBeasiswa.mahasiswa.nama} ({pembayaran.tagihan.periode})</div>
-        {pembayaran.fileBuktiTransferUrl.startsWith("http") ? (
-          <div style={{ marginTop: 6 }}>
-            <a href={pembayaran.fileBuktiTransferUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--info)", textDecoration: "none", fontSize: 12 }}>Buka bukti di Google Drive →</a>
-          </div>
-        ) : null}
 
         {accState?.ok ? <div className="alert alert-success" style={{ marginTop: 8 }}>Pembayaran di-ACC, tagihan lunas & STT dibuat.</div> : null}
         {accState?.error ? <div className="alert alert-error" style={{ marginTop: 8 }}>{accState.error}</div> : null}
@@ -46,6 +42,7 @@ export default function VerifikasiItem({ pembayaran }: { pembayaran: VerifikasiP
         {tolakState?.error ? <div className="alert alert-error" style={{ marginTop: 8 }}>{tolakState.error}</div> : null}
 
         <div className="list-actions" style={{ flexWrap: "wrap" }}>
+          <LihatBuktiDialog url={pembayaran.fileBuktiTransferUrl} />
           <form action={accAction} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <input type="hidden" name="id" value={pembayaran.id} />
             <input className="input mono" style={{ width: 130, padding: "6px 8px", fontSize: 13 }} type="number" name="nominal"
