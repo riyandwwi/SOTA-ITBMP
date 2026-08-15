@@ -3,8 +3,8 @@ import { hashPassword, encryptSecret } from "../src/lib/password";
 
 const prisma = new PrismaClient();
 
-// Jaminan Aturan #1 (anti double-assign) di level database, khusus SQLite dev.
-// Untuk PostgreSQL, tambahkan via migration SQL (lihat dokumentasi).
+// Jaminan Aturan #1 (anti double-assign) di level database.
+// Sudah dibuat oleh migration (PostgreSQL); baris ini aman (IF NOT EXISTS).
 async function ensurePartialIndex() {
   await prisma.$executeRawUnsafe(
     `CREATE UNIQUE INDEX IF NOT EXISTS mapping_beasiswa_mahasiswa_aktif_unique

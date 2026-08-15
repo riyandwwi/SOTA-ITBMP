@@ -8,7 +8,7 @@ import { verifyPassword, hashPassword, encryptSecret, decryptSecret } from "@/li
 import { audit } from "@/lib/audit";
 import { saveFile, MAX_FILE_SIZE, isAllowedImage, imageExtension, isAllowedPdf } from "@/lib/storage";
 import { notificationService } from "@/lib/notifications";
-import { deriveTahunAkademik, bulanKeyNow, bulanLabel, bulanKeyTambah } from "@/lib/format";
+import { deriveTahunAkademik, bulanKeyNow, bulanLabel, bulanKeyTambah, tanggalKey } from "@/lib/format";
 
 const HOME: Record<string, string> = {
   super_admin: "/super-admin",
@@ -504,7 +504,8 @@ export async function uploadBuktiAction(_: ActionResult, formData: FormData): Pr
 
   const buf = Buffer.from(await file.arrayBuffer());
   const ext = imageExtension(file.type);
-  const stored = await saveFile("buktiTransfer", `bukti-${mappingId.slice(0, 8)}-${Date.now()}.${ext}`, buf);
+  const namaDonatur = don.nama.trim().replace(/\s+/g, "_");
+  const stored = await saveFile("buktiTransfer", `${namaDonatur}_${tanggalKey(new Date())}.${ext}`, buf);
 
   const res = await prisma.$transaction(async (tx) => {
     const nowKey = bulanKeyNow();

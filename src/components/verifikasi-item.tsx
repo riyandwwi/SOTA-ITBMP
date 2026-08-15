@@ -7,6 +7,7 @@ import { Icon } from "./icons";
 
 interface VerifikasiPembayaran {
   id: string;
+  fileBuktiTransferUrl: string;
   nominalDitransfer: number;
   tanggalTransfer: Date;
   status: string;
@@ -33,6 +34,11 @@ export default function VerifikasiItem({ pembayaran }: { pembayaran: VerifikasiP
           <span className="mono" style={{ fontSize: 11 }}>#{pembayaran.tagihan.kodeReferensiUnik}</span>
         </div>
         <div className="meta">{rupiah(pembayaran.nominalDitransfer)} · transfer {tanggal(pembayaran.tanggalTransfer)} · untuk {pembayaran.tagihan.mappingBeasiswa.mahasiswa.nama} ({pembayaran.tagihan.periode})</div>
+        {pembayaran.fileBuktiTransferUrl.startsWith("http") ? (
+          <div style={{ marginTop: 6 }}>
+            <a href={pembayaran.fileBuktiTransferUrl} target="_blank" rel="noopener noreferrer" style={{ color: "var(--info)", textDecoration: "none", fontSize: 12 }}>Buka bukti di Google Drive →</a>
+          </div>
+        ) : null}
 
         {accState?.ok ? <div className="alert alert-success" style={{ marginTop: 8 }}>Pembayaran di-ACC, tagihan lunas & STT dibuat.</div> : null}
         {accState?.error ? <div className="alert alert-error" style={{ marginTop: 8 }}>{accState.error}</div> : null}
