@@ -1,0 +1,203 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  super_admin
+  admin_akademik
+  lazismu
+  donatur
+  pimpinan
+}
+
+model User {
+  id                String    @id @default(uuid())
+  nama              String
+  email             String    @unique
+  username          String    @unique
+  passwordHash      String
+  passwordEncrypted String
+  role              Role
+  dibuatOlehId      String?
+  dibuatOleh        User?     @relation("DibuatOleh", fields: [dibuatOlehId], references: [id])
+  dibuatUsers       User[]    @relation("DibuatOleh")
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  donatur           Donatur?
+  rekeningDiajukan  RekeningBank[] @relation("DiajukanRekening")
+
+  @@index([role])
+}
+
+enum StatusCover {
+  belum_ada_donatur
+  sudah_ada_donatur
+}
+
+enum StatusAktif {
+  aktif
+  diarsipkan
+}
+
+model Mahasiswa {
+  id                          String            @id @default(uuid())
+  nama                        String
+  nim                         String            @unique
+  prodi                       String
+  semester                    Int
+  fotoUrl                     String?
+  nominalKebutuhanPerSemester Int
+  statusCover                 StatusCover       @default(belum_ada_donatur)
+  statusAktif                 StatusAktif       @default(aktif)
+  tahunAkademik              String?
+  ipkHistory                  IpkHistory[]
+  mappingBeasiswa             MappingBeasiswa[]
+  createdAt                   DateTime          @default(now())
+  updatedAt                   DateTime          @updatedAt
+}
+
+enum TipeDonatur {
+  individu
+  korporat
+}
+
+model Donatur {
+  id                    String            @id @default(uuid())
+  userId                String            @unique
+  user                  User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kontakWa              String
+  tipeDonatur           TipeDonatur
+  jumlahMahasiswaTarget Int
+  mappingBeasiswa       MappingBeasiswa[]
+}
+
+enum StatusRekening {
+  pending
+  aktif
+  nonaktif
+}
+
+model RekeningBank {
+  id             String         @id @default(uuid())
+  nomorRekening  String
+  namaBank       String
+  atasNama       String
+  diajukanOlehId String
+  diajukanOleh   User           @relation("DiajukanRekening", fields: [diajukanOlehId], references: [id], onDelete: Cascade)
+  status         StatusRekening @default(pending)
+  diAccOlehId    String?
+  tanggalAcc     DateTime?
+  createdAt      DateTime       @default(now())
+}
+
+model IpkHistory {
+  id              String            @id @default(uuid())
+  mahasiswaId     String
+  mahasiswa       Mahasiswa         @relation(fields: [mahasiswaId], references: [id], onDelete: Cascade)
+  semester        Int
+  nilaiIpk        Float
+  fileKhsUrl      String?
+  flagPeringatan  Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  mataKuliahNilai MataKuliahNilai[]
+
+  @@unique([mahasiswaId, semester])
+}
+
+model MataKuliahNilai {
+  id             String     @id @default(uuid())
+  ipkHistoryId   String
+  ipkHistory     IpkHistory @relation(fields: [ipkHistoryId], references: [id], onDelete: Cascade)
+  namaMataKuliah String
+  sks            Int
+  nilaiHuruf     String
+  bobotNilai     Float
+}
+
+enum SkemaBayar {
+  bulanan
+  semester
+}
+
+enum StatusMapping {
+  aktif
+  diganti
+  selesai
+}
+
+model MappingBeasiswa {
+  id                String       @id @default(uuid())
+  donaturId         String
+  donatur           Donatur      @relation(fields: [donaturId], references: [id], onDelete: Cascade)
+  mahasiswaId       String
+  mahasiswa         Mahasiswa    @relation(fields: [mahasiswaId], references: [id], onDelete: Cascade)
+  nominalTanggungan Int
+  skemaBayar        SkemaBayar
+  tanggalMulai      DateTime     @default(now())
+  status            StatusMapping @default(aktif)
+  dibuatOlehId      String
+  diubahOlehId      String?
+  tanggalDiubah     DateTime?
+  tagihan           Tagihan[]
+
+  @@index([mahasiswaId, status])
+  @@index([donaturId, status])
+}
+
+enum StatusTagihan {
+  pending
+  menunggu_verifikasi
+  lunas
+  ditolak
+}
+
+model Tagihan {
+  id                  String        @id @default(uuid())
+  mappingBeasiswaId   String
+  mappingBeasiswa     MappingBeasiswa @relation(fields: [mappingBeasiswaId], references: [id], onDelete: Cascade)
+  periode             String
+  nominalHarusDibayar Int
+  kodeReferensiUnik   String        @unique
+  tanggalJatuhTempo   DateTime
+  status              StatusTagihan @default(pending)
+  pembayaran          Pembayaran[]
+}
+
+enum StatusPembayaran {
+  menunggu
+  acc
+  ditolak
+}
+
+model Pembayaran {
+  id                   String           @id @default(uuid())
+  tagihanId            String
+  tagihan              Tagihan          @relation(fields: [tagihanId], references: [id], onDelete: Cascade)
+  fileBuktiTransferUrl String
+  tanggalTransfer      DateTime
+  nominalDitransfer    Int
+  status               StatusPembayaran @default(menunggu)
+  alasanPenolakan      String?
+  idAdminAcc           String?
+  urlPdfStt            String?
+  tanggalAcc           DateTime?
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  userId          String?
+  jenisAksi       String
+  entitas         String
+  entitasId       String?
+  detailPerubahan String?
+  timestamp       DateTime @default(now())
+  status          String?
+
+  @@index([jenisAksi])
+  @@index([entitas])
+}
