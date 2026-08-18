@@ -330,6 +330,67 @@ export async function tolakPembayaranAction(_: ActionResult, formData: FormData)
   return { ok: true };
 }
 
+export async function accBatchAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const laz = await getSessionUser();
+  if (!laz || laz.role !== "lazismu") return { error: "Tidak berwenang." };
+  const batchId = String(formData.get("batchId") || "");
+  const nominalTotal = Number(formData.get("nominal") || 0);
+  if (!batchId) return { error: "Batch tidak valid." };
+  const items = await prisma.pembayaran.findMany({
+    where: { batchId, status: "menunggu" },
+    include: { tagihan: true },
+  });
+  if (items.length === 0) return { error: "Tidak ada pembayaran menunggu pada batch ini." };
+  const nominalPer = nominalTotal > 0 ? Math.round(nominalTotal / items.length) : items[0].nominalDitransfer;
+  await prisma.$transaction(async (tx) => {
+    for (const p of items) {
+      await tx.pembayaran.update({
+        where: { id: p.id },
+        data: {
+          status: "acc", idAdminAcc: laz.id, tanggalAcc: new Date(),
+          nominalDitransfer: nominalPer,
+          urlPdfStt: `/stt/stt-${p.id.slice(0, 8)}.pdf`,
+        },
+      });
+      await tx.tagihan.update({ where: { id: p.tagihanId }, data: { status: "lunas", nominalHarusDibayar: nominalPer } });
+    }
+    await tx.auditLog.create({
+      data: {
+        userId: laz.id, jenisAksi: "acc", entitas: "pembayaran", entitasId: batchId,
+        detailPerubahan: JSON.stringify({ batch: true, jumlah: items.length, nominalAsliPerItem: items[0].nominalDitransfer, nominalBaruPerItem: nominalPer }),
+      },
+    });
+  });
+  revalidatePath("/lazismu");
+  revalidatePath("/lazismu/verifikasi");
+  return { ok: true };
+}
+
+export async function tolakBatchAction(_: ActionResult, formData: FormData): Promise<ActionResult> {
+  const laz = await getSessionUser();
+  if (!laz || laz.role !== "lazismu") return { error: "Tidak berwenang." };
+  const batchId = String(formData.get("batchId") || "");
+  const alasan = String(formData.get("alasan") || "Bukti tidak valid");
+  if (!batchId) return { error: "Batch tidak valid." };
+  const items = await prisma.pembayaran.findMany({
+    where: { batchId, status: "menunggu" },
+    include: { tagihan: true },
+  });
+  if (items.length === 0) return { error: "Tidak ada pembayaran menunggu pada batch ini." };
+  await prisma.$transaction(async (tx) => {
+    for (const p of items) {
+      await tx.pembayaran.update({ where: { id: p.id }, data: { status: "ditolak", alasanPenolakan: alasan } });
+      await tx.tagihan.update({ where: { id: p.tagihanId }, data: { status: "ditolak" } });
+    }
+    await tx.auditLog.create({
+      data: { userId: laz.id, jenisAksi: "tolak", entitas: "pembayaran", entitasId: batchId, detailPerubahan: JSON.stringify({ batch: true, jumlah: items.length, alasan }) },
+    });
+  });
+  revalidatePath("/lazismu");
+  revalidatePath("/lazismu/verifikasi");
+  return { ok: true };
+}
+
 export async function approveRekeningAction(formData: FormData): Promise<void> {
   const u = await getSessionUser();
   if (!u || !["super_admin", "pimpinan"].includes(u.role)) redirect("/login");
@@ -389,21 +450,85 @@ export async function transaksiManualAction(_: ActionResult, formData: FormData)
   if (!laz || laz.role !== "lazismu") return { error: "Tidak berwenang." };
   const donaturId = String(formData.get("donaturId") || "");
   const nominal = Number(formData.get("nominal") || 0);
-  const keterangan = String(formData.get("keterangan") || "").trim() || "Transaksi manual";
+  const cakupan = String(formData.get("cakupan") || "bulan_ini");
+  const tanggal = String(formData.get("tanggalTransfer") || tanggalKey(new Date()));
+  const file = formData.get("file");
   if (!donaturId || nominal <= 0) return { error: "Pilih donatur dan nominal valid." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Wajib upload bukti transfer (PNG/JPG)." };
+  if (file.size > MAX_FILE_SIZE) return { error: "Ukuran file maksimal 5MB." };
+  if (!isAllowedImage(file.type)) return { error: "Bukti transfer harus berupa gambar PNG atau JPG." };
+
   const mapping = await prisma.mappingBeasiswa.findFirst({ where: { donaturId, status: "aktif" } });
   if (!mapping) return { error: "Donatur tidak punya mahasiswa asuh aktif." };
-  await prisma.$transaction(async (tx) => {
-    const kode = `LZ-MAN-${Date.now().toString(36)}`;
-    const tagihan = await tx.tagihan.create({
-      data: { mappingBeasiswaId: mapping.id, periode: keterangan, periodeKey: bulanKeyNow(), nominalHarusDibayar: nominal, kodeReferensiUnik: kode, tanggalJatuhTempo: new Date(), status: "lunas" },
+
+  const buf = Buffer.from(await file.arrayBuffer());
+  const ext = imageExtension(file.type);
+  const stored = await saveFile("buktiTransfer", `manual_${laz.nama.trim().replace(/\s+/g, "_")}_${tanggalKey(new Date())}.${ext}`, buf);
+  const tanggalTransfer = new Date(`${tanggal}T12:00:00`);
+
+  const batchId = `BATCH-MAN-${Date.now().toString(36)}-${Math.floor(100 + Math.random() * 900)}`;
+  const res = await prisma.$transaction(async (tx) => {
+    const nowKey = bulanKeyNow();
+    const existing = await tx.tagihan.findMany({ where: { mappingBeasiswaId: mapping.id } });
+    const byKey = new Map(existing.map((t) => [t.periodeKey, t]));
+
+    const buatTagihan = async (k: string) =>
+      tx.tagihan.create({
+        data: {
+          mappingBeasiswaId: mapping.id, periode: bulanLabel(k), periodeKey: k,
+          nominalHarusDibayar: mapping.nominalTanggungan,
+          kodeReferensiUnik: `LZ-MAN-${Date.now().toString(36)}-${Math.floor(1000 + Math.random() * 9000)}`,
+          tanggalJatuhTempo: new Date(Date.now() + 14 * 86400000), status: "pending",
+        },
+      });
+
+    if (!byKey.has(nowKey)) byKey.set(nowKey, await buatTagihan(nowKey));
+
+    const bisaDibayar = (t: { status: string }) => t.status === "pending" || t.status === "ditolak";
+    let targets: { id: string; periodeKey: string; nominalHarusDibayar: number }[] = [];
+    if (cakupan === "semua") {
+      const pending = Array.from(byKey.values()).filter(bisaDibayar);
+      if (pending.length === 0) {
+        const t = byKey.get(nowKey);
+        if (t && bisaDibayar(t)) targets = [t];
+      } else {
+        targets = pending;
+      }
+    } else if (cakupan === "semester") {
+      for (let i = 0; i < 6; i++) {
+        const k = bulanKeyTambah(nowKey, i);
+        const t = byKey.get(k);
+        if (t) {
+          if (bisaDibayar(t)) targets.push(t);
+        } else {
+          targets.push(await buatTagihan(k));
+        }
+      }
+    } else {
+      const t = byKey.get(nowKey);
+      if (t && bisaDibayar(t)) targets = [t];
+    }
+    if (targets.length === 0) return null;
+
+    const nominalPerTagihan = Math.round(nominal / targets.length);
+    const pakaiBatch = targets.length > 1;
+    for (const t of targets) {
+      await tx.pembayaran.create({
+        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, fileBuktiTransferUrl: stored.url, tanggalTransfer, nominalDitransfer: nominalPerTagihan },
+      });
+      await tx.tagihan.update({ where: { id: t.id }, data: { status: "menunggu_verifikasi" } });
+    }
+    await tx.auditLog.create({
+      data: {
+        userId: laz.id, jenisAksi: "create", entitas: "pembayaran_manual", entitasId: mapping.id,
+        detailPerubahan: JSON.stringify({ nominal, cakupan, jumlahTagihan: targets.length, bulan: targets.map((t) => t.periodeKey), tanggal: tanggalKey(tanggalTransfer) }),
+      },
     });
-    await tx.pembayaran.create({
-      data: { tagihanId: tagihan.id, fileBuktiTransferUrl: "/bukti-transfer/manual", tanggalTransfer: new Date(), nominalDitransfer: nominal, status: "acc", idAdminAcc: laz.id, tanggalAcc: new Date() },
-    });
-    await tx.auditLog.create({ data: { userId: laz.id, jenisAksi: "create", entitas: "pembayaran_manual", detailPerubahan: JSON.stringify({ nominal, keterangan }) } });
+    return targets;
   });
+  if (!res) return { error: "Tidak ada tagihan yang bisa dicatat (semua sudah lunas)." };
   revalidatePath("/lazismu");
+  revalidatePath("/lazismu/verifikasi");
   return { ok: true };
 }
 
@@ -507,6 +632,7 @@ export async function uploadBuktiAction(_: ActionResult, formData: FormData): Pr
   const namaDonatur = don.nama.trim().replace(/\s+/g, "_");
   const stored = await saveFile("buktiTransfer", `${namaDonatur}_${tanggalKey(new Date())}.${ext}`, buf);
 
+  const batchId = `BATCH-${Date.now().toString(36)}-${Math.floor(100 + Math.random() * 900)}`;
   const res = await prisma.$transaction(async (tx) => {
     const nowKey = bulanKeyNow();
     const existing = await tx.tagihan.findMany({ where: { mappingBeasiswaId: mapping.id } });
@@ -551,9 +677,10 @@ export async function uploadBuktiAction(_: ActionResult, formData: FormData): Pr
     if (targets.length === 0) return null;
 
     const nominalPerTagihan = nominal > 0 ? Math.round(nominal / targets.length) : mapping.nominalTanggungan;
+    const pakaiBatch = targets.length > 1;
     for (const t of targets) {
       await tx.pembayaran.create({
-        data: { tagihanId: t.id, fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominalPerTagihan },
+        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominalPerTagihan },
       });
       await tx.tagihan.update({ where: { id: t.id }, data: { status: "menunggu_verifikasi" } });
     }

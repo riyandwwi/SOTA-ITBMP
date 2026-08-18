@@ -176,6 +176,7 @@ model Pembayaran {
   id                   String           @id @default(uuid())
   tagihanId            String
   tagihan              Tagihan          @relation(fields: [tagihanId], references: [id], onDelete: Cascade)
+  batchId              String?
   fileBuktiTransferUrl String
   tanggalTransfer      DateTime
   nominalDitransfer    Int
@@ -184,6 +185,8 @@ model Pembayaran {
   idAdminAcc           String?
   urlPdfStt            String?
   tanggalAcc           DateTime?
+
+  @@index([batchId])
 }
 
 model AuditLog {

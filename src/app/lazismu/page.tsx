@@ -13,7 +13,7 @@ export default async function LazismuDashboard() {
 
   const [tagihan, pembayaran, aktifRek] = await Promise.all([
     prisma.tagihan.findMany({ orderBy: { tanggalJatuhTempo: "desc" }, include: { mappingBeasiswa: { include: { donatur: { include: { user: true } } } } } }),
-    prisma.pembayaran.findMany({ where: { status: "menunggu" }, orderBy: { tanggalTransfer: "desc" } }),
+    prisma.pembayaran.findMany({ where: { status: "menunggu" }, orderBy: { tanggalTransfer: "desc" }, include: { tagihan: { include: { mappingBeasiswa: { include: { donatur: { include: { user: true } } } } } } } }),
     prisma.rekeningBank.findMany({ where: { status: "aktif" } }),
   ]);
 
@@ -26,6 +26,14 @@ export default async function LazismuDashboard() {
   const belumNominal = tagihan.filter((t) => t.status === "pending" || t.status === "ditolak").reduce((s, t) => s + t.nominalHarusDibayar, 0);
   const menungguNominal = tagihan.filter((t) => t.status === "menunggu_verifikasi").reduce((s, t) => s + t.nominalHarusDibayar, 0);
   const pctMasuk = seharusnya > 0 ? Math.round((masuk / seharusnya) * 100) : 0;
+
+  const queueGroups = new Map<string, typeof pembayaran>();
+  for (const p of pembayaran) {
+    const key = p.batchId ?? `single-${p.id}`;
+    if (!queueGroups.has(key)) queueGroups.set(key, []);
+    queueGroups.get(key)!.push(p);
+  }
+  const queueList = Array.from(queueGroups.values()).slice(0, 3);
 
   const dist = [
     { name: "Lunas", value: lunas, color: "#0E6B4F" },
@@ -92,16 +100,21 @@ export default async function LazismuDashboard() {
         <div>
           <Card title="Antrean Verifikasi Pembayaran" hint="ACC atau tolak bukti transfer"
             actions={<a className="btn btn-primary btn-sm" href="/lazismu/verifikasi"><Icon name="eye" size={14} />Buka Antrean</a>}>
-            {pembayaran.length === 0 ? <Empty message="Tidak ada pembayaran menunggu." /> :
-              pembayaran.slice(0, 3).map((p) => (
-                <div className="list-item" key={p.id}>
-                  <div className="thumb"><Icon name="upload" /></div>
-                  <div className="grow">
-                    <div className="top-row"><strong style={{ fontSize: 13 }}>#{p.id.slice(0, 8)}</strong><span className="mono" style={{ fontSize: 11 }}>{rupiah(p.nominalDitransfer)}</span></div>
-                    <div className="meta">transfer {tanggal(p.tanggalTransfer)}</div>
+            {queueList.length === 0 ? <Empty message="Tidak ada pembayaran menunggu." /> :
+              queueList.map((items) => {
+                const p = items[0];
+                const total = items.reduce((s, x) => s + x.nominalDitransfer, 0);
+                const tag = p.batchId ? `${items.length} bulan · ${rupiah(total)}` : rupiah(total);
+                return (
+                  <div className="list-item" key={p.id}>
+                    <div className="thumb"><Icon name="upload" /></div>
+                    <div className="grow">
+                      <div className="top-row"><strong style={{ fontSize: 13 }}>{p.tagihan.mappingBeasiswa.donatur.user.nama}</strong><span className="mono" style={{ fontSize: 11 }}>{tag}</span></div>
+                      <div className="meta">transfer {tanggal(p.tanggalTransfer)}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
           </Card>
 
           <Card title="Distribusi Status Tagihan">

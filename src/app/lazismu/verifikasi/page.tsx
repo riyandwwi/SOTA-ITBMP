@@ -17,12 +17,20 @@ export default async function VerifikasiPage() {
     },
   });
 
+  const groups = new Map<string, typeof pembayaran>();
+  for (const p of pembayaran) {
+    const key = p.batchId ?? `single-${p.id}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(p);
+  }
+  const list = Array.from(groups.values());
+
   return (
     <>
       <PageHeader title="Verifikasi Pembayaran" sub="Bukti transfer yang menunggu persetujuan" />
-      <Card title={`Antrean (${pembayaran.length})`} hint="ACC membuat tagihan lunas + STT + notifikasi, dalam satu transaksi">
-        {pembayaran.length === 0 ? <Empty message="Tidak ada bukti transfer yang menunggu verifikasi. ✅" /> :
-          pembayaran.map((p) => <VerifikasiItem key={p.id} pembayaran={p} />)}
+      <Card title={`Antrean (${pembayaran.length} pembayaran · ${list.length} grup)`} hint="ACC melunasi seluruh bulan dalam satu grup, lalu tagihan lunas + STT + notifikasi">
+        {list.length === 0 ? <Empty message="Tidak ada bukti transfer yang menunggu verifikasi. ✅" /> :
+          list.map((items) => <VerifikasiItem key={items[0].id} items={items} />)}
       </Card>
     </>
   );
