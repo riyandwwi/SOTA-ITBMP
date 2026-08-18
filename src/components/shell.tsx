@@ -1,6 +1,7 @@
 import { Icon } from "./icons";
 import { Avatar } from "./ui";
 import { SidebarNav } from "./sidebar";
+import { MobileNav } from "./mobile-nav";
 import { NAV } from "@/lib/nav";
 import { ROLE_LABEL } from "@/lib/auth";
 import { initial } from "@/lib/format";
@@ -13,6 +14,7 @@ export function AppShell({ user, children }: { user: User; children: React.React
   return (
     <>
       <div className="topbar">
+        <MobileNav sections={sections} />
         <a className="brand" href="/">
           <div className="brand-mark">SOTA</div>
           <div className="brand-text">

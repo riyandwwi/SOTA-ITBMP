@@ -23,7 +23,7 @@ export async function MobileShell({ children }: { children: React.ReactNode }) {
         </div>
         <div className="header-actions">
           <form action="/api/logout" method="post" style={{ margin: 0 }}>
-            <button className="icon-btn" title="Keluar"><Icon name="logout" size={16} /></button>
+            <button className="icon-btn" title="Keluar" aria-label="Keluar"><Icon name="logout" size={18} /></button>
           </form>
         </div>
       </header>
