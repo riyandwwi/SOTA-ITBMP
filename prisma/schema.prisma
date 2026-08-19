@@ -172,6 +172,11 @@ enum StatusPembayaran {
   ditolak
 }
 
+enum SumberPembayaran {
+  sistem
+  manual
+}
+
 model Pembayaran {
   id                   String           @id @default(uuid())
   tagihanId            String
@@ -181,12 +186,14 @@ model Pembayaran {
   tanggalTransfer      DateTime
   nominalDitransfer    Int
   status               StatusPembayaran @default(menunggu)
+  sumber               SumberPembayaran @default(sistem)
   alasanPenolakan      String?
   idAdminAcc           String?
   urlPdfStt            String?
   tanggalAcc           DateTime?
 
   @@index([batchId])
+  @@index([status, tanggalAcc])
 }
 
 model AuditLog {

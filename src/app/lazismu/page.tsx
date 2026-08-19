@@ -76,7 +76,7 @@ export default async function LazismuDashboard() {
       <div className="grid-2">
         <div>
           <Card title="Status Tagihan Donatur" hint="No. WA untuk penagihan"
-            actions={<a className="btn btn-ghost btn-sm" href="/api/export/laporan-donasi"><Icon name="download" size={14} />Laporan Donasi</a>}>
+            actions={<div style={{ display: "flex", gap: 6 }}><a className="btn btn-ghost btn-sm" href="/lazismu/histori"><Icon name="wallet" size={14} />Histori</a><a className="btn btn-ghost btn-sm" href="/api/export/laporan-donasi"><Icon name="download" size={14} />Laporan Donasi</a></div>}>
             <div className="table-wrap">
               <table>
                 <thead><tr><th>Donatur</th><th>No. WA</th><th>Status</th><th>Nominal</th><th>Jatuh Tempo</th></tr></thead>

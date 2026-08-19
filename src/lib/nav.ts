@@ -32,6 +32,7 @@ export const NAV: Record<string, NavSection[]> = {
     { label: "Menu", items: [
       { label: "Dashboard", href: "/lazismu", icon: "grid" },
       { label: "Verifikasi Pembayaran", href: "/lazismu/verifikasi", icon: "shield" },
+      { label: "Histori Pembayaran", href: "/lazismu/histori", icon: "wallet" },
       { label: "Rekening Bank", href: "/lazismu/rekening", icon: "bank" },
       { label: "Transaksi Manual", href: "/lazismu/transaksi-manual", icon: "plus" },
     ] },

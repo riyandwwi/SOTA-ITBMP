@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { accBatchAction, tolakBatchAction } from "@/lib/actions";
 import { rupiah, tanggal, bulanLabel } from "@/lib/format";
 import { Icon } from "./icons";
+import { Badge } from "./ui";
 import LihatBuktiDialog from "./lihat-bukti-dialog";
 
 interface VerifikasiPembayaran {
@@ -13,6 +14,7 @@ interface VerifikasiPembayaran {
   nominalDitransfer: number;
   tanggalTransfer: Date;
   status: string;
+  sumber: string;
   tagihan: {
     periodeKey: string;
     periode: string;
@@ -40,6 +42,7 @@ export default function VerifikasiItem({ items }: { items: VerifikasiPembayaran[
       <div className="grow">
         <div className="top-row">
           <strong style={{ fontSize: 13 }}>{item.tagihan.mappingBeasiswa.donatur.user.nama}</strong>
+          {item.sumber === "manual" ? <Badge text="Manual" tone="accent" /> : <Badge text="Sistem" tone="info" />}
           <span className="mono" style={{ fontSize: 11 }}>{isBatch ? `#${item.batchId!.slice(-6)}` : `#${item.tagihan.kodeReferensiUnik}`}</span>
         </div>
         <div className="meta">

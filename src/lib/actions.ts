@@ -453,7 +453,9 @@ export async function transaksiManualAction(_: ActionResult, formData: FormData)
   const cakupan = String(formData.get("cakupan") || "bulan_ini");
   const tanggal = String(formData.get("tanggalTransfer") || tanggalKey(new Date()));
   const file = formData.get("file");
+  const sudahPeriksa = String(formData.get("periksa") || "") === "1";
   if (!donaturId || nominal <= 0) return { error: "Pilih donatur dan nominal valid." };
+  if (!sudahPeriksa) return { error: "Wajib melihat & memeriksa bukti transfer terlebih dahulu sebelum mencatat." };
   if (!(file instanceof File) || file.size === 0) return { error: "Wajib upload bukti transfer (PNG/JPG)." };
   if (file.size > MAX_FILE_SIZE) return { error: "Ukuran file maksimal 5MB." };
   if (!isAllowedImage(file.type)) return { error: "Bukti transfer harus berupa gambar PNG atau JPG." };
@@ -514,7 +516,7 @@ export async function transaksiManualAction(_: ActionResult, formData: FormData)
     const pakaiBatch = targets.length > 1;
     for (const t of targets) {
       await tx.pembayaran.create({
-        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, fileBuktiTransferUrl: stored.url, tanggalTransfer, nominalDitransfer: nominalPerTagihan },
+        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, sumber: "manual", fileBuktiTransferUrl: stored.url, tanggalTransfer, nominalDitransfer: nominalPerTagihan },
       });
       await tx.tagihan.update({ where: { id: t.id }, data: { status: "menunggu_verifikasi" } });
     }
@@ -680,7 +682,7 @@ export async function uploadBuktiAction(_: ActionResult, formData: FormData): Pr
     const pakaiBatch = targets.length > 1;
     for (const t of targets) {
       await tx.pembayaran.create({
-        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominalPerTagihan },
+        data: { tagihanId: t.id, batchId: pakaiBatch ? batchId : null, sumber: "sistem", fileBuktiTransferUrl: stored.url, tanggalTransfer: new Date(), nominalDitransfer: nominalPerTagihan },
       });
       await tx.tagihan.update({ where: { id: t.id }, data: { status: "menunggu_verifikasi" } });
     }
